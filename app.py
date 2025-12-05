@@ -294,7 +294,8 @@ async def generate_docx(request: dict = Body(...)):
 
 ---
 
-{all_qa_text}"""
+{all_qa_text}
+
 [あれば記載]
 """
         
