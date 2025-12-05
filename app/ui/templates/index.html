@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>議事録インタビューAI</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📘 議事録インタビューAI</h1>
+        </header>
+
+        <main>
+            <!-- 質問表示エリア -->
+            <div class="question-area">
+                <h2 id="question-title">質問をロード中...</h2>
+                <p id="question-category" class="category"></p>
+                
+                <!-- 音声再生ボタン -->
+                <button id="play-audio-btn" class="play-btn" title="質問を音声で聞く">
+                    ▶︎ 質問を聞く
+                </button>
+            </div>
+
+            <!-- 回答表示エリア -->
+            <div class="answer-area">
+                <h3>音声の内容</h3>
+                <div id="transcript-text" class="transcript-box">
+                    （録音ボタンを長押ししてください）
+                </div>
+                <div id="summary-text" class="summary-box" style="display:none;">
+                    <strong>要約:</strong>
+                    <p></p>
+                </div>
+            </div>
+
+            <!-- 録音ボタン（中央の大きな丸） -->
+            <div class="record-area">
+                <button id="record-btn" class="record-btn">
+                    <div class="record-icon">◯</div>
+                    <span class="record-label">長押しで録音</span>
+                </button>
+            </div>
+
+            <!-- ナビゲーション -->
+            <div class="navigation">
+                <button id="back-btn" class="nav-btn" disabled>← Back</button>
+                <button id="next-btn" class="nav-btn">Next →</button>
+                <button id="finish-btn" class="finish-btn" style="display:none;">
+                    📄 Word生成
+                </button>
+            </div>
+        </main>
+
+        <!-- ステータス表示 -->
+        <div id="status" class="status"></div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

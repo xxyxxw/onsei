@@ -1,0 +1,270 @@
+/* 議事録インタビューAI - スタイルシート */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 28px;
+    font-weight: 600;
+}
+
+main {
+    padding: 40px;
+}
+
+/* 質問エリア */
+.question-area {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 15px;
+}
+
+#question-title {
+    font-size: 22px;
+    color: #333;
+    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
+.category {
+    display: inline-block;
+    background: #667eea;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.play-btn {
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.play-btn:hover {
+    background: #218838;
+    transform: scale(1.05);
+}
+
+/* 回答エリア */
+.answer-area {
+    margin-bottom: 30px;
+}
+
+.answer-area h3 {
+    font-size: 18px;
+    color: #555;
+    margin-bottom: 10px;
+}
+
+.transcript-box {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    padding: 20px;
+    min-height: 100px;
+    color: #666;
+    line-height: 1.8;
+}
+
+.summary-box {
+    margin-top: 15px;
+    background: #e7f3ff;
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.summary-box strong {
+    color: #667eea;
+}
+
+/* 録音ボタン */
+.record-area {
+    display: flex;
+    justify-content: center;
+    margin: 40px 0;
+}
+
+.record-btn {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+    border: none;
+    border-radius: 50%;
+    width: 150px;
+    height: 150px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: all 0.3s;
+    box-shadow: 0 8px 20px rgba(255, 107, 107, 0.4);
+}
+
+.record-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 25px rgba(255, 107, 107, 0.5);
+}
+
+.record-btn:active,
+.record-btn.recording {
+    background: linear-gradient(135deg, #ee5a6f, #dc143c);
+    animation: pulse 1s infinite;
+}
+
+.record-icon {
+    font-size: 60px;
+    line-height: 1;
+}
+
+.record-label {
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.08);
+    }
+}
+
+/* ナビゲーション */
+.navigation {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.nav-btn {
+    flex: 1;
+    padding: 15px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+.nav-btn:disabled {
+    background: #dee2e6;
+    color: #6c757d;
+    cursor: not-allowed;
+}
+
+.finish-btn {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.finish-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* ステータス */
+.status {
+    text-align: center;
+    padding: 15px;
+    margin-top: 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    display: none;
+}
+
+.status.show {
+    display: block;
+}
+
+.status.info {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.status.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 600px) {
+    main {
+        padding: 20px;
+    }
+
+    #question-title {
+        font-size: 18px;
+    }
+
+    .record-btn {
+        width: 120px;
+        height: 120px;
+    }
+
+    .record-icon {
+        font-size: 50px;
+    }
+
+    .navigation {
+        flex-direction: column;
+    }
+}
