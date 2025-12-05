@@ -1,5 +1,5 @@
 """
-FastAPI メインアプリケーション（Vercel対応）
+FastAPI メインアプリケーション（Render対応）
 """
 import os
 from fastapi import FastAPI, File, UploadFile, Form, Body
@@ -38,16 +38,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 静的ファイルの配信（Vercel用 - publicディレクトリを優先）
-public_dir = Path(__file__).parent / "public"
+# 静的ファイルの配信（app/ui/staticを使用）
 static_dir = Path(__file__).parent / "app" / "ui" / "static"
-
-# Vercelではpublicディレクトリが使われる
-if public_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(public_dir)), name="static")
-else:
-    static_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+static_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # サービス初期化
 questions = Config.load_questions()
