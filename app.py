@@ -1,13 +1,12 @@
 """
-FastAPI メインアプリケーション
+FastAPI メインアプリケーション（Vercel対応）
 """
 import os
 from fastapi import FastAPI, File, UploadFile, Form, Body
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
-import uvicorn
 
 # プロキシ設定を削除（Gemini APIへの直接接続を確保）
 if 'HTTP_PROXY' in os.environ:
@@ -39,10 +38,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 静的ファイルの配信
+# 静的ファイルの配信（Vercel用 - publicディレクトリを優先）
+public_dir = Path(__file__).parent / "public"
 static_dir = Path(__file__).parent / "app" / "ui" / "static"
-static_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# Vercelではpublicディレクトリが使われる
+if public_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(public_dir)), name="static")
+else:
+    static_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # サービス初期化
 questions = Config.load_questions()
@@ -56,25 +61,69 @@ docx_service = DocxService()
 
 @app.get("/")
 async def root():
-    """ルートエンドポイント"""
-    template_path = Path(__file__).parent / "app" / "ui" / "templates" / "index.html"
-    if template_path.exists():
-        return FileResponse(template_path)
+    """ルートエンドポイント - カテゴリー選択画面"""
+    # Vercel用 - publicディレクトリを優先
+    public_path = Path(__file__).parent / "public" / "top.html"
+    template_path = Path(__file__).parent / "app" / "ui" / "templates" / "top.html"
+    
+    file_path = public_path if public_path.exists() else template_path
+    
+    if file_path.exists():
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return Response(content=content, media_type="text/html")
     return {"message": "議事録インタビューAI API"}
 
 
-@app.get("/api/question/{question_id}")
-async def get_question(question_id: int):
+@app.get("/interview/{interview_type}")
+async def interview_page(interview_type: str):
+    """インタビューページ"""
+    # Vercel用 - publicディレクトリを優先
+    public_path = Path(__file__).parent / "public" / "index.html"
+    template_path = Path(__file__).parent / "app" / "ui" / "templates" / "index.html"
+    
+    file_path = public_path if public_path.exists() else template_path
+    
+    if file_path.exists():
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return Response(content=content, media_type="text/html")
+    return JSONResponse(
+        status_code=404,
+        content={"error": "Interview page not found"}
+    )
+
+
+@app.get("/api/{interview_type}/question/{question_id}")
+async def get_question(interview_type: str, question_id: int):
     """
     質問を取得
     
     Args:
+        interview_type: インタビュータイプ (denryoku, hoken, ippan, other)
         question_id: 質問ID
         
     Returns:
         質問データ
     """
-    question = question_flow.get_question(question_id)
+    # タイプ別の設定ファイルを読み込む
+    import json
+    config_path = Path(__file__).parent / f"config_{interview_type}.json"
+    
+    if not config_path.exists():
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Interview type not found"}
+        )
+    
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+    
+    questions = config.get('questions', [])
+    
+    # 質問を検索
+    question = next((q for q in questions if q['id'] == question_id), None)
+    
     if not question:
         return JSONResponse(
             status_code=404,
@@ -82,10 +131,10 @@ async def get_question(question_id: int):
         )
     
     return {
-        "id": question.id,
-        "text": question.text,
-        "category": question.category,
-        "is_last": question_flow.is_last_question(question_id)
+        "id": question['id'],
+        "text": question['text'],
+        "category": question['category'],
+        "is_last": question_id >= len(questions)
     }
 
 
@@ -207,8 +256,9 @@ async def generate_docx(request: dict = Body(...)):
         生成されたWordファイル
     """
     try:
-        # フロントエンドから全回答を受け取る
+        # フロントエンドから全回答とインタビュータイプを受け取る
         answers = request.get("answers", {})
+        interview_type = request.get("interview_type", "ippan")
         
         if not answers:
             return JSONResponse(
@@ -216,38 +266,41 @@ async def generate_docx(request: dict = Body(...)):
                 content={"error": "No answers available"}
             )
         
+        # インタビュータイプの設定ファイルを読み込む
+        import json
+        config_path = Path(__file__).parent / f"config_{interview_type}.json"
+        
+        if not config_path.exists():
+            return JSONResponse(
+                status_code=404,
+                content={"error": "Interview type configuration not found"}
+            )
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        custom_prompt = config.get('summary_prompt', '')
+        questions = config.get('questions', [])
+        
         # 全質問と回答をまとめたテキストを作成
-        all_qa_text = "以下は議事録のためのインタビュー回答です。\n\n"
+        all_qa_text = ""
         
         for question_id_str, answer_data in answers.items():
             question_id = int(question_id_str)
-            question = question_flow.get_question(question_id)
+            question = next((q for q in questions if q['id'] == question_id), None)
             if question and answer_data.get("transcript"):
-                all_qa_text += f"【{question.category}】{question.text}\n"
+                all_qa_text += f"【{question['category']}】{question['text']}\n"
                 all_qa_text += f"回答: {answer_data['transcript']}\n\n"
         
         # Gemini APIで全体を要約・整形（1回だけAPI呼び出し）
-        print("Gemini APIで全回答を要約・整形中...")
-        summary_prompt = f"""{all_qa_text}
+        print(f"Gemini APIで全回答を要約・整形中... (タイプ: {interview_type})")
+        
+        # カスタムプロンプトを使用
+        summary_prompt = f"""{custom_prompt}
 
-上記のインタビュー内容をもとに、議事録として整理してください。
-以下の形式で出力してください：
+---
 
-## 基本情報
-- 日時: [回答から抽出]
-- 参加者: [回答から抽出]
-- 場所: [回答から抽出]
-
-## 議題
-[回答をまとめて簡潔に]
-
-## 議論内容
-[主要なポイントを箇条書きで]
-
-## 決定事項・結論
-[決まったことをまとめて]
-
-## 次回アクション
+{all_qa_text}"""
 [あれば記載]
 """
         
@@ -286,7 +339,9 @@ async def generate_docx(request: dict = Body(...)):
         )
 
 
+# ローカル開発用
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run(
         app,
         host=Config.HOST,

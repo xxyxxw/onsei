@@ -27,11 +27,31 @@ header {
     color: white;
     padding: 30px;
     text-align: center;
+    position: relative;
 }
 
 header h1 {
     font-size: 28px;
     font-weight: 600;
+}
+
+.back-to-top {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: white;
+    text-decoration: none;
+    padding: 8px 15px;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.back-to-top:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: white;
 }
 
 main {

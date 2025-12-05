@@ -3,9 +3,17 @@
 let currentQuestionId = 1;
 let recognition = null; // Web Speech API
 let isRecording = false;
+let interviewType = ''; // インタビュータイプ (denryoku, hoken, ippan, other)
 
 // 各質問の回答を保存（文字起こしのみ、要約は最後にまとめて実施）
 const answersData = {};
+
+// URLからインタビュータイプを取得
+function getInterviewType() {
+    const path = window.location.pathname;
+    const match = path.match(/\/interview\/(\w+)/);
+    return match ? match[1] : 'ippan'; // デフォルトは一般用
+}
 
 // DOM要素
 const questionTitle = document.getElementById('question-title');
@@ -21,6 +29,10 @@ const status = document.getElementById('status');
 
 // 初期化
 async function init() {
+    // インタビュータイプを取得
+    interviewType = getInterviewType();
+    console.log('📋 インタビュータイプ:', interviewType);
+    
     // Web Speech API（音声認識）の初期化
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -29,12 +41,18 @@ async function init() {
         recognition.continuous = true;
         recognition.interimResults = true;
         
+        recognition.onstart = () => {
+            console.log('🎤 音声認識が開始されました');
+        };
+        
         recognition.onresult = (event) => {
+            console.log('✅ 音声を検出しました！', event);
             let interimTranscript = '';
             let finalTranscript = '';
             
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const transcript = event.results[i][0].transcript;
+                console.log(`結果[${i}]: "${transcript}" (確定: ${event.results[i].isFinal})`);
                 if (event.results[i].isFinal) {
                     finalTranscript += transcript;
                 } else {
@@ -43,49 +61,44 @@ async function init() {
             }
             
             // リアルタイムで表示
-            transcriptText.textContent = (answersData[currentQuestionId]?.transcript || '') + finalTranscript + interimTranscript;
+            const displayText = (answersData[currentQuestionId]?.transcript || '') + finalTranscript + interimTranscript;
+            console.log('📝 表示テキスト:', displayText);
+            transcriptText.textContent = displayText;
             
             // 確定した文字起こしを保存
             if (finalTranscript) {
                 answersData[currentQuestionId] = {
                     transcript: (answersData[currentQuestionId]?.transcript || '') + finalTranscript
                 };
+                console.log('💾 保存:', answersData[currentQuestionId].transcript);
             }
         };
         
         recognition.onerror = (event) => {
-            console.error('Speech recognition error:', event.error);
+            console.error('❌ Speech recognition error:', event.error);
             
             // no-speechエラーは無視（音声が聞こえない場合は正常）
             if (event.error === 'no-speech') {
-                console.log('音声が検出されませんでした。話し続けてください。');
-                return;
+                console.log('⏸️ 音声が検出されませんでした。話し続けてください。');
+                return; // エラー扱いしない
             }
             
             // その他のエラーは表示
             if (event.error === 'not-allowed') {
                 showStatus('マイクの権限が拒否されました。ブラウザの設定でマイクを許可してください。', 'error');
+                isRecording = false;
+                recordBtn.classList.remove('recording');
             } else if (event.error === 'network') {
                 showStatus('ネットワークエラーが発生しました。', 'error');
-            } else {
-                showStatus('音声認識エラー: ' + event.error, 'error');
+            } else if (event.error !== 'aborted') {
+                // abortedはユーザーが停止した場合なので無視
+                console.warn('⚠️ その他のエラー:', event.error);
             }
-            
-            isRecording = false;
-            recordBtn.classList.remove('recording');
         };
         
         recognition.onend = () => {
-            console.log('Recognition ended. isRecording:', isRecording);
-            if (isRecording) {
-                // 自動停止された場合は再開
-                try {
-                    recognition.start();
-                    console.log('Recognition restarted');
-                } catch (e) {
-                    console.error('Failed to restart recognition:', e);
-                }
-            }
+            console.log('⏹️ Recognition ended. isRecording:', isRecording);
+            // 自動再起動はしない（no-speechエラーのループを防ぐ）
         };
     } else {
         showStatus('お使いのブラウザは音声認識に対応していません。Chrome/Edgeをご利用ください。', 'error');
@@ -99,7 +112,7 @@ async function loadQuestion(questionId) {
     try {
         showStatus('質問を読み込み中...', 'info');
         
-        const response = await fetch(`/api/question/${questionId}`);
+        const response = await fetch(`/api/${interviewType}/question/${questionId}`);
         const data = await response.json();
         
         if (response.ok) {
@@ -242,14 +255,15 @@ finishBtn.addEventListener('click', async () => {
         
         showStatus('全回答をAIで要約・整形中...', 'info');
         
-        // 全質問の回答をサーバーに送信
+        // 全質問の回答とインタビュータイプをサーバーに送信
         const response = await fetch('/api/docx', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                answers: answersData
+                answers: answersData,
+                interview_type: interviewType
             })
         });
         

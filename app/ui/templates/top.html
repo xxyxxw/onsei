@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>議事録インタビューAI - カテゴリー選択</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .category-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-decoration: none;
+            color: white;
+        }
+
+        .category-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .category-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .category-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .category-description {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #999;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 議事録インタビューAI</h1>
+        <p class="subtitle">インタビューの種類を選択してください</p>
+
+        <div class="category-grid">
+            <a href="/interview/denryoku" class="category-card">
+                <div class="category-icon">⚡</div>
+                <div class="category-title">電力用</div>
+                <div class="category-description">電力関係の会議・インタビュー用</div>
+            </a>
+
+            <a href="/interview/hoken" class="category-card">
+                <div class="category-icon">🏥</div>
+                <div class="category-title">保健用</div>
+                <div class="category-description">保健・医療関係の会議用</div>
+            </a>
+
+            <a href="/interview/ippan" class="category-card">
+                <div class="category-icon">💼</div>
+                <div class="category-title">一般用</div>
+                <div class="category-description">一般的な会議・インタビュー用</div>
+            </a>
+
+            <a href="/interview/other" class="category-card">
+                <div class="category-icon">📋</div>
+                <div class="category-title">その他</div>
+                <div class="category-description">カスタムインタビュー用</div>
+            </a>
+        </div>
+
+        <div class="footer">
+            音声認識を使用したリアルタイム議事録作成システム
+        </div>
+    </div>
+</body>
+</html>
