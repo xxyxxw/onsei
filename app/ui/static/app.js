@@ -1,6 +1,7 @@
 // 議事録インタビューAI - JavaScriptコード
 
 let currentQuestionId = 1;
+let totalQuestions = 10; // デフォルト値、APIから取得して更新
 let recognition = null; // Web Speech API
 let isRecording = false;
 let interviewType = ''; // インタビュータイプ (denryoku, hoken, ippan, other)
@@ -18,6 +19,7 @@ function getInterviewType() {
 // DOM要素
 const questionTitle = document.getElementById('question-title');
 const questionCategory = document.getElementById('question-category');
+const questionIdDisplay = document.getElementById('question-id-display'); // 追加
 const transcriptText = document.getElementById('transcript-text');
 const summaryText = document.getElementById('summary-text');
 const recordBtn = document.getElementById('record-btn');
@@ -26,6 +28,35 @@ const backBtn = document.getElementById('back-btn');
 const nextBtn = document.getElementById('next-btn');
 const finishBtn = document.getElementById('finish-btn');
 const status = document.getElementById('status');
+const recordingStatus = document.getElementById('recording-status'); // 追加
+const progressBar = document.getElementById('progress-bar'); // 追加
+
+// エフェクト: ボタンクリック時の波紋
+function createRipple(event) {
+    const button = event.currentTarget;
+    const circle = document.createElement("span");
+    const diameter = Math.max(button.clientWidth, button.clientHeight);
+    const radius = diameter / 2;
+
+    circle.style.width = circle.style.height = `${diameter}px`;
+    circle.style.left = `${event.clientX - button.getBoundingClientRect().left - radius}px`;
+    circle.style.top = `${event.clientY - button.getBoundingClientRect().top - radius}px`;
+    circle.classList.add("ripple");
+
+    const ripple = button.getElementsByClassName("ripple")[0];
+
+    if (ripple) {
+        ripple.remove();
+    }
+
+    button.appendChild(circle);
+}
+
+// ボタンに波紋エフェクトを追加
+const buttons = document.getElementsByTagName("button");
+for (const button of buttons) {
+    button.addEventListener("click", createRipple);
+}
 
 // 初期化
 async function init() {
@@ -40,9 +71,11 @@ async function init() {
         recognition.lang = 'ja-JP';
         recognition.continuous = true;
         recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
         
         recognition.onstart = () => {
             console.log('🎤 音声認識が開始されました');
+            updateRecordingStatus(true);
         };
         
         recognition.onresult = (event) => {
@@ -84,219 +117,336 @@ async function init() {
             }
             
             // その他のエラーは表示
-            if (event.error === 'not-allowed') {
+            if (event.error === 'not-allowed' || event.error === 'permission-denied') {
                 showStatus('マイクの権限が拒否されました。ブラウザの設定でマイクを許可してください。', 'error');
                 isRecording = false;
                 recordBtn.classList.remove('recording');
+                updateRecordingStatus(false);
             } else if (event.error === 'network') {
                 showStatus('ネットワークエラーが発生しました。', 'error');
+            } else if (event.error === 'service-not-allowed') {
+                showStatus('このブラウザでは音声認識がサポートされていません。Chromeまたはsafariをお試しください。', 'error');
             } else if (event.error !== 'aborted') {
                 // abortedはユーザーが停止した場合なので無視
                 console.warn('⚠️ その他のエラー:', event.error);
+                showStatus('音声認識でエラーが発生しました。もう一度お試しください。', 'error');
             }
         };
         
         recognition.onend = () => {
             console.log('⏹️ Recognition ended. isRecording:', isRecording);
-            // 自動再起動はしない（no-speechエラーのループを防ぐ）
+            // 録音中の場合は再開（継続的な録音のため）
+            if (isRecording) {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error('再開エラー:', e);
+                    // already startedエラーの場合は無視
+                    if (!e.message.includes('already started')) {
+                        isRecording = false;
+                        recordBtn.classList.remove('recording');
+                        updateRecordingStatus(false);
+                    }
+                }
+            } else {
+                recordBtn.classList.remove('recording');
+                updateRecordingStatus(false);
+            }
         };
     } else {
-        showStatus('お使いのブラウザは音声認識に対応していません。Chrome/Edgeをご利用ください。', 'error');
+        showStatus('お使いのブラウザは音声認識に対応していません。Chrome/Safari/Edgeをご利用ください。', 'error');
+        recordBtn.disabled = true;
+        recordBtn.style.opacity = '0.5';
+        recordBtn.style.cursor = 'not-allowed';
     }
-    
+
+    // 最初の質問をロード
     await loadQuestion(currentQuestionId);
+}
+
+// 録音ステータスの更新
+function updateRecordingStatus(recording) {
+    if (recordingStatus) {
+        if (recording) {
+            recordingStatus.classList.add('recording');
+            recordingStatus.innerHTML = '<span class="status-dot"></span> 録音中...';
+        } else {
+            recordingStatus.classList.remove('recording');
+            recordingStatus.innerHTML = '<span class="status-dot"></span> 待機中';
+        }
+    }
 }
 
 // 質問をロード
 async function loadQuestion(questionId) {
     try {
-        showStatus('質問を読み込み中...', 'info');
+        // フェードアウトエフェクト
+        document.querySelector('.question-card').style.opacity = '0.5';
+        document.querySelector('.answer-card').style.opacity = '0.5';
         
         const response = await fetch(`/api/${interviewType}/question/${questionId}`);
+        if (!response.ok) {
+            throw new Error('質問の取得に失敗しました');
+        }
+        
         const data = await response.json();
         
-        if (response.ok) {
+        // フェードインエフェクト
+        setTimeout(() => {
+            document.querySelector('.question-card').style.opacity = '1';
+            document.querySelector('.answer-card').style.opacity = '1';
+            
             questionTitle.textContent = data.text;
             questionCategory.textContent = data.category;
-            currentQuestionId = questionId;
+            if (questionIdDisplay) questionIdDisplay.textContent = questionId;
             
-            // 保存された回答があれば復元、なければクリア
+            // is_lastフラグから総質問数を推定
+            if (data.is_last) {
+                totalQuestions = questionId;
+            }
+            
+            // プログレスバーの更新（現在の質問までを完了として表示）
+            const progress = ((questionId - 1) / totalQuestions) * 100;
+            if (progressBar) progressBar.style.width = `${progress}%`;
+
+            // 保存された回答があれば表示
             if (answersData[questionId]?.transcript) {
                 transcriptText.textContent = answersData[questionId].transcript;
             } else {
-                transcriptText.textContent = '（録音ボタンを長押しして話してください）';
+                transcriptText.textContent = '（録音ボタンを長押しして、回答をお話しください）';
             }
             
-            // 要約は最後にまとめて生成するため非表示
+            // 要約エリアをリセット
             summaryText.style.display = 'none';
             
-            // ナビゲーションボタンの状態
+            // ボタンの状態更新
             backBtn.disabled = questionId === 1;
             
+            // is_lastフラグで最後の質問かどうか判定
             if (data.is_last) {
                 nextBtn.style.display = 'none';
-                finishBtn.style.display = 'block';
+                finishBtn.style.display = 'flex';
             } else {
-                nextBtn.style.display = 'inline-block';
+                nextBtn.style.display = 'flex';
                 finishBtn.style.display = 'none';
             }
-            
-            hideStatus();
-        } else {
-            showStatus('質問の読み込みに失敗しました', 'error');
-        }
+        }, 300);
+
     } catch (error) {
-        console.error('Error loading question:', error);
-        showStatus('エラーが発生しました', 'error');
+        console.error('Error:', error);
+        showStatus('質問の読み込みに失敗しました', 'error');
     }
 }
 
-// 音声認識機能（Web Speech API）
-recordBtn.addEventListener('mousedown', startRecognition);
-recordBtn.addEventListener('mouseup', stopRecognition);
-recordBtn.addEventListener('touchstart', startRecognition);
-recordBtn.addEventListener('touchend', stopRecognition);
+// イベントリスナー
+// 録音ボタン（長押し対応）
+// PC: mousedown/mouseup, スマホ: touchstart/touchend
 
-function startRecognition(event) {
-    event.preventDefault(); // デフォルト動作を防ぐ
-    
+const startRecording = () => {
     if (!recognition) {
-        showStatus('音声認識が利用できません。Google Chromeをお使いください。', 'error');
+        showStatus('音声認識が利用できません。Chrome/Safari/Edgeをお使いください。', 'error');
         return;
     }
     
-    if (isRecording) {
-        return; // 既に録音中の場合は何もしない
-    }
-    
-    try {
-        console.log('Starting recognition...');
-        recognition.start();
+    if (!isRecording) {
         isRecording = true;
         recordBtn.classList.add('recording');
-        showStatus('🎤 音声認識中... 話してください（ボタンを押したまま）', 'info');
-    } catch (error) {
-        console.error('Recognition start error:', error);
-        if (error.message.includes('already started')) {
-            console.log('Recognition already running');
-        } else {
-            showStatus('音声認識の開始に失敗: ' + error.message, 'error');
+        try {
+            recognition.start();
+            showStatus('録音中...', 'success');
+        } catch (e) {
+            console.error('開始エラー:', e);
+            // "already started"エラーは無視（既に開始されている場合）
+            if (e.message && e.message.includes('already started')) {
+                console.log('Recognition already started, continuing...');
+            } else {
+                isRecording = false;
+                recordBtn.classList.remove('recording');
+                updateRecordingStatus(false);
+                showStatus('録音の開始に失敗しました。もう一度お試しください。', 'error');
+            }
         }
     }
-}
+};
 
-function stopRecognition(event) {
-    event.preventDefault(); // デフォルト動作を防ぐ
-    
-    if (recognition && isRecording) {
-        console.log('Stopping recognition...');
-        recognition.stop();
+const stopRecording = () => {
+    if (isRecording && recognition) {
         isRecording = false;
         recordBtn.classList.remove('recording');
-        
-        const savedText = answersData[currentQuestionId]?.transcript || '';
-        if (savedText.trim()) {
-            showStatus('✅ 音声認識を停止しました。「' + savedText.slice(0, 20) + '...」が保存されました。', 'success');
-        } else {
-            showStatus('⚠️ 音声が認識されませんでした。もう一度お試しください。', 'error');
+        try {
+            recognition.stop();
+            showStatus('録音を停止しました', 'success');
+        } catch (e) {
+            console.error('停止エラー:', e);
+            // エラーが出ても状態はリセット
+            updateRecordingStatus(false);
         }
     }
-}
+};
 
-// sendAudio関数は不要（Web Speech APIがリアルタイムで処理）
+// マウスイベント
+recordBtn.addEventListener('mousedown', startRecording);
+recordBtn.addEventListener('mouseup', stopRecording);
+recordBtn.addEventListener('mouseleave', stopRecording);
+
+// タッチイベント（スマホ用）
+recordBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // スクロール防止
+    e.stopPropagation(); // イベント伝播を停止
+    startRecording();
+}, { passive: false });
+
+recordBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    stopRecording();
+}, { passive: false });
+
+// タッチキャンセル時も停止
+recordBtn.addEventListener('touchcancel', (e) => {
+    e.preventDefault();
+    stopRecording();
+}, { passive: false });
+
+// やり直しボタン
+const resetBtn = document.getElementById('reset-btn');
+if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+        // 録音中の場合は停止
+        if (isRecording) {
+            stopRecording();
+        }
+        
+        // 現在の質問の回答をクリア
+        if (answersData[currentQuestionId]) {
+            delete answersData[currentQuestionId];
+        }
+        transcriptText.textContent = '（録音ボタンを長押しして、回答をお話しください）';
+        showStatus('この質問の回答をクリアしました。もう一度録音してください。', 'success');
+    });
+}
 
 // 音声再生
 playAudioBtn.addEventListener('click', async () => {
     try {
-        showStatus('音声を読み込み中...', 'info');
+        playAudioBtn.disabled = true;
+        playAudioBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 準備中...';
         
-        const response = await fetch(`/api/tts/${currentQuestionId}`);
+        const response = await fetch('/api/tts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: questionTitle.textContent
+            }),
+        });
         
-        if (response.ok) {
-            const audioBlob = await response.blob();
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-            
-            audio.play();
-            showStatus('音声を再生中...', 'info');
-            
-            audio.onended = () => {
-                hideStatus();
-            };
-        } else {
-            showStatus('音声の再生に失敗しました', 'error');
-        }
+        if (!response.ok) throw new Error('音声合成に失敗しました');
+        
+        const blob = await response.blob();
+        const audio = new Audio(URL.createObjectURL(blob));
+        
+        audio.onended = () => {
+            playAudioBtn.disabled = false;
+            playAudioBtn.innerHTML = '<i class="fas fa-volume-up"></i> 質問を聞く';
+        };
+        
+        audio.play();
+        playAudioBtn.innerHTML = '<i class="fas fa-volume-up"></i> 再生中...';
+        
     } catch (error) {
-        console.error('Error playing audio:', error);
-        showStatus('エラーが発生しました', 'error');
+        console.error('Error:', error);
+        showStatus('音声再生に失敗しました', 'error');
+        playAudioBtn.disabled = false;
+        playAudioBtn.innerHTML = '<i class="fas fa-volume-up"></i> 質問を聞く';
     }
 });
 
 // ナビゲーション
 backBtn.addEventListener('click', () => {
     if (currentQuestionId > 1) {
-        loadQuestion(currentQuestionId - 1);
+        currentQuestionId--;
+        loadQuestion(currentQuestionId);
     }
 });
 
 nextBtn.addEventListener('click', () => {
-    loadQuestion(currentQuestionId + 1);
+    currentQuestionId++;
+    loadQuestion(currentQuestionId);
 });
 
-// Word生成（全質問の回答をまとめてGemini APIで要約・整形）
 finishBtn.addEventListener('click', async () => {
     try {
-        // 回答が入力されているか確認
-        const hasAnswers = Object.keys(answersData).length > 0;
-        if (!hasAnswers) {
-            showStatus('回答が入力されていません', 'error');
-            return;
-        }
+        finishBtn.disabled = true;
+        finishBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
+        showStatus('議事録を生成しています。しばらくお待ちください...', 'success');
         
-        showStatus('全回答をAIで要約・整形中...', 'info');
-        
-        // 全質問の回答とインタビュータイプをサーバーに送信
-        const response = await fetch('/api/docx', {
+        // サーバーに回答データを送信してWord生成
+        const response = await fetch('/api/generate_docx', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                answers: answersData,
-                interview_type: interviewType
-            })
+                interview_type: interviewType,
+                answers: answersData
+            }),
         });
         
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = '議事録_' + new Date().toISOString().slice(0, 10) + '.docx';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            
-            showStatus('Word文書をダウンロードしました！', 'success');
-        } else {
-            const errorData = await response.json();
-            showStatus('Word文書の生成に失敗: ' + (errorData.detail || '不明なエラー'), 'error');
-        }
+        if (!response.ok) throw new Error('生成に失敗しました');
+        
+        // ダウンロード処理
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `議事録_${new Date().toISOString().slice(0,10)}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        finishBtn.disabled = false;
+        finishBtn.innerHTML = '<i class="fas fa-file-word"></i> Word生成';
+        showStatus('ダウンロードが完了しました！', 'success');
+        
     } catch (error) {
-        console.error('Error generating docx:', error);
-        showStatus('エラーが発生しました: ' + error.message, 'error');
+        console.error('Error:', error);
+        showStatus('生成に失敗しました', 'error');
+        finishBtn.disabled = false;
+        finishBtn.innerHTML = '<i class="fas fa-file-word"></i> Word生成';
     }
 });
 
 // ステータス表示
-function showStatus(message, type) {
+function showStatus(message, type = 'info') {
     status.textContent = message;
-    status.className = `status show ${type}`;
+    status.className = 'status-toast show ' + type;
+    
+    setTimeout(() => {
+        status.className = 'status-toast'; // hide
+    }, 3000);
 }
 
-function hideStatus() {
-    status.className = 'status';
+// トップに戻るボタンの警告
+const backToTopLink = document.getElementById('back-to-top-link');
+if (backToTopLink) {
+    backToTopLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        
+        // 回答データがある場合は警告を表示
+        const hasAnswers = Object.keys(answersData).length > 0;
+        if (hasAnswers) {
+            const confirmed = confirm('トップに戻ると、すべての録音データが消えます。\n本当によろしいですか？');
+            if (confirmed) {
+                window.location.href = '/';
+            }
+        } else {
+            window.location.href = '/';
+        }
+    });
 }
 
-// ページ読み込み時に初期化
-window.addEventListener('DOMContentLoaded', init);
+// 開始
+init();

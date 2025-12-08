@@ -4,59 +4,99 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>議事録インタビューAI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <!-- Background Animation -->
+    <div class="bg-animation">
+        <div class="floating-shape shape-1"></div>
+        <div class="floating-shape shape-2"></div>
+        <div class="floating-shape shape-3"></div>
+        <div class="floating-shape shape-4"></div>
+    </div>
+
     <div class="container">
         <header>
-            <h1>📘 議事録インタビューAI</h1>
-            <a href="/" class="back-to-top">← トップページに戻る</a>
+            <div class="header-content">
+                <h1><i class="fas fa-book-open" style="margin-right: 10px;"></i>議事録インタビューAI</h1>
+                <a href="#" id="back-to-top-link" class="back-to-top"><i class="fas fa-arrow-left"></i> トップに戻る</a>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
         </header>
 
         <main>
             <!-- 質問表示エリア -->
-            <div class="question-area">
+            <div class="question-card fade-in-up">
+                <div class="question-header">
+                    <span id="question-category" class="category-badge">Category</span>
+                    <span class="question-number">Q.<span id="question-id-display">1</span></span>
+                </div>
                 <h2 id="question-title">質問をロード中...</h2>
-                <p id="question-category" class="category"></p>
                 
                 <!-- 音声再生ボタン -->
                 <button id="play-audio-btn" class="play-btn" title="質問を音声で聞く">
-                    ▶︎ 質問を聞く
+                    <i class="fas fa-volume-up"></i> 質問を聞く
                 </button>
             </div>
 
             <!-- 回答表示エリア -->
-            <div class="answer-area">
-                <h3>音声の内容</h3>
-                <div id="transcript-text" class="transcript-box">
-                    （録音ボタンを長押ししてください）
+            <div class="answer-card fade-in-up delay-1">
+                <div class="card-header">
+                    <h3><i class="fas fa-comment-alt"></i> あなたの回答</h3>
+                    <div class="recording-status" id="recording-status">
+                        <span class="status-dot"></span> 待機中
+                    </div>
+                </div>
+                <div class="transcript-container">
+                    <div id="transcript-text" class="transcript-box">
+                        （録音ボタンを長押しして、回答をお話しください）
+                    </div>
                 </div>
                 <div id="summary-text" class="summary-box" style="display:none;">
-                    <strong>要約:</strong>
+                    <div class="summary-header"><i class="fas fa-magic"></i> AI要約</div>
                     <p></p>
                 </div>
             </div>
 
             <!-- 録音ボタン（中央の大きな丸） -->
-            <div class="record-area">
-                <button id="record-btn" class="record-btn">
-                    <div class="record-icon">◯</div>
-                    <span class="record-label">長押しで録音</span>
-                </button>
+            <div class="record-area fade-in-up delay-2">
+                <div class="record-controls">
+                    <div class="record-wrapper">
+                        <div class="record-ring"></div>
+                        <div class="record-ring-2"></div>
+                        <button id="record-btn" class="record-btn">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                    </div>
+                    <button id="reset-btn" class="reset-btn" title="この質問の回答をやり直す">
+                        <i class="fas fa-redo-alt"></i>
+                    </button>
+                </div>
+                <p class="record-instruction">長押しで録音開始</p>
             </div>
 
             <!-- ナビゲーション -->
-            <div class="navigation">
-                <button id="back-btn" class="nav-btn" disabled>← Back</button>
-                <button id="next-btn" class="nav-btn">Next →</button>
+            <div class="navigation fade-in-up delay-3">
+                <button id="back-btn" class="nav-btn secondary" disabled>
+                    <i class="fas fa-chevron-left"></i> 前へ
+                </button>
+                <button id="next-btn" class="nav-btn primary">
+                    次へ <i class="fas fa-chevron-right"></i>
+                </button>
                 <button id="finish-btn" class="finish-btn" style="display:none;">
-                    📄 Word生成
+                    <i class="fas fa-file-word"></i> Word生成
                 </button>
             </div>
         </main>
 
         <!-- ステータス表示 -->
-        <div id="status" class="status"></div>
+        <div id="status" class="status-toast"></div>
     </div>
 
     <script src="/static/app.js"></script>
