@@ -11,6 +11,13 @@ class STTService:
     
     def __init__(self):
         """Gemini APIの初期化"""
+        # API キーのチェック
+        if not Config.GEMINI_API_KEY:
+            raise ValueError(
+                "GEMINI_API_KEY environment variable is not set. "
+                "Please set it in Render Dashboard > Environment tab."
+            )
+        
         # 環境変数を設定
         os.environ['GOOGLE_API_KEY'] = Config.GEMINI_API_KEY
         
