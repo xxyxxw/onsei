@@ -94,7 +94,7 @@ async def get_question(interview_type: str, question_id: int):
     質問を取得
     
     Args:
-        interview_type: インタビュータイプ (denryoku, hoken, ippan, other)
+        interview_type: インタビュータイプ (denryoku, hoken, ippan, other, free)
         question_id: 質問ID
         
     Returns:

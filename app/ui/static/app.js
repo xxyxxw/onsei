@@ -23,7 +23,6 @@ const questionIdDisplay = document.getElementById('question-id-display'); // 追
 const transcriptText = document.getElementById('transcript-text');
 const summaryText = document.getElementById('summary-text');
 const recordBtn = document.getElementById('record-btn');
-const playAudioBtn = document.getElementById('play-audio-btn');
 const backBtn = document.getElementById('back-btn');
 const nextBtn = document.getElementById('next-btn');
 const finishBtn = document.getElementById('finish-btn');
@@ -96,13 +95,14 @@ async function init() {
             // リアルタイムで表示
             const displayText = (answersData[currentQuestionId]?.transcript || '') + finalTranscript + interimTranscript;
             console.log('📝 表示テキスト:', displayText);
-            transcriptText.textContent = displayText;
+            transcriptText.value = displayText;
             
             // 確定した文字起こしを保存
             if (finalTranscript) {
-                answersData[currentQuestionId] = {
-                    transcript: (answersData[currentQuestionId]?.transcript || '') + finalTranscript
-                };
+                if (!answersData[currentQuestionId]) {
+                    answersData[currentQuestionId] = { transcript: '' };
+                }
+                answersData[currentQuestionId].transcript = (answersData[currentQuestionId].transcript || '') + finalTranscript;
                 console.log('💾 保存:', answersData[currentQuestionId].transcript);
             }
         };
@@ -211,9 +211,9 @@ async function loadQuestion(questionId) {
 
             // 保存された回答があれば表示
             if (answersData[questionId]?.transcript) {
-                transcriptText.textContent = answersData[questionId].transcript;
+                transcriptText.value = answersData[questionId].transcript;
             } else {
-                transcriptText.textContent = '（録音ボタンを長押しして、回答をお話しください）';
+                transcriptText.value = '';
             }
             
             // 要約エリアをリセット
@@ -238,6 +238,16 @@ async function loadQuestion(questionId) {
     }
 }
 
+// テキストエリアの入力を保存
+transcriptText.addEventListener('input', () => {
+    const currentText = transcriptText.value;
+    if (!answersData[currentQuestionId]) {
+        answersData[currentQuestionId] = {};
+    }
+    answersData[currentQuestionId].transcript = currentText;
+    console.log('✏️ キーボード入力を保存:', currentText);
+});
+
 // イベントリスナー
 // 録音ボタン（長押し対応）
 // PC: mousedown/mouseup, スマホ: touchstart/touchend
@@ -249,6 +259,14 @@ const startRecording = () => {
     }
     
     if (!isRecording) {
+        // 音声認識開始前に現在のテキストエリアの内容を保存
+        const currentText = transcriptText.value;
+        if (!answersData[currentQuestionId]) {
+            answersData[currentQuestionId] = {};
+        }
+        answersData[currentQuestionId].transcript = currentText;
+        console.log('🎤 録音開始前の既存テキスト:', currentText);
+        
         isRecording = true;
         recordBtn.classList.add('recording');
         try {
@@ -321,47 +339,10 @@ if (resetBtn) {
         if (answersData[currentQuestionId]) {
             delete answersData[currentQuestionId];
         }
-        transcriptText.textContent = '（録音ボタンを長押しして、回答をお話しください）';
+        transcriptText.value = '';
         showStatus('この質問の回答をクリアしました。もう一度録音してください。', 'success');
     });
 }
-
-// 音声再生
-playAudioBtn.addEventListener('click', async () => {
-    try {
-        playAudioBtn.disabled = true;
-        playAudioBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 準備中...';
-        
-        const response = await fetch('/api/tts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                text: questionTitle.textContent
-            }),
-        });
-        
-        if (!response.ok) throw new Error('音声合成に失敗しました');
-        
-        const blob = await response.blob();
-        const audio = new Audio(URL.createObjectURL(blob));
-        
-        audio.onended = () => {
-            playAudioBtn.disabled = false;
-            playAudioBtn.innerHTML = '<i class="fas fa-volume-up"></i> 質問を聞く';
-        };
-        
-        audio.play();
-        playAudioBtn.innerHTML = '<i class="fas fa-volume-up"></i> 再生中...';
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showStatus('音声再生に失敗しました', 'error');
-        playAudioBtn.disabled = false;
-        playAudioBtn.innerHTML = '<i class="fas fa-volume-up"></i> 質問を聞く';
-    }
-});
 
 // ナビゲーション
 backBtn.addEventListener('click', () => {
@@ -383,7 +364,7 @@ finishBtn.addEventListener('click', async () => {
         showStatus('議事録を生成しています。しばらくお待ちください...', 'success');
         
         // サーバーに回答データを送信してWord生成
-        const response = await fetch('/api/generate_docx', {
+        const response = await fetch('/api/docx', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
