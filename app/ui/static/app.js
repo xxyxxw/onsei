@@ -552,7 +552,7 @@ function setupSidebarListeners() {
     const sidebar = document.getElementById('sidebar');
     
     if (menuToggle) {
-        menuToggle.addEventListener('click', openSidebar);
+        menuToggle.addEventListener('click', toggleSidebar);
     }
     
     if (sidebarClose) {
@@ -561,6 +561,17 @@ function setupSidebarListeners() {
     
     if (sidebarOverlay) {
         sidebarOverlay.addEventListener('click', closeSidebar);
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    if (sidebar && sidebar.classList.contains('active')) {
+        closeSidebar();
+    } else {
+        openSidebar();
     }
 }
 
