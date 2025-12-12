@@ -81,6 +81,9 @@ async function init() {
         recognition.onstart = () => {
             console.log('🎤 音声認識が開始されました');
             updateRecordingStatus(true);
+            
+            // 録音開始時にテキストエリアまでスクロール
+            scrollToTextarea();
         };
         
         recognition.onresult = (event) => {
@@ -102,6 +105,12 @@ async function init() {
             const displayText = (answersData[currentQuestionId]?.transcript || '') + finalTranscript + interimTranscript;
             console.log('📝 表示テキスト:', displayText);
             transcriptText.value = displayText;
+            
+            // テキストエリアのカーソルを最下部に移動
+            transcriptText.scrollTop = transcriptText.scrollHeight;
+            
+            // 音声入力中はテキストエリアが見える位置を維持
+            scrollToTextarea();
             
             // 確定した文字起こしを保存
             if (finalTranscript) {
@@ -608,6 +617,16 @@ function updateSidebarActive(questionId) {
             item.classList.remove('active');
         }
     });
+}
+
+// テキストエリアまでスムーズにスクロール
+function scrollToTextarea() {
+    if (transcriptText) {
+        transcriptText.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center'
+        });
+    }
 }
 
 // 開始
