@@ -19,14 +19,32 @@
         <div class="floating-shape shape-4"></div>
     </div>
 
+    <!-- ハンバーガーメニューボタン（スマホのみ表示） -->
+    <button id="menu-toggle" class="menu-toggle" aria-label="メニューを開く">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- 質問一覧サイドバー -->
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="fas fa-list"></i> 質問一覧</h3>
+            <button id="sidebar-close" class="sidebar-close" aria-label="閉じる">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="question-list" class="question-list">
+            <!-- JavaScriptで動的に生成 -->
+        </div>
+    </aside>
+
+    <!-- オーバーレイ（スマホでサイドバー開いた時の背景） -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
     <div class="container">
         <header>
             <div class="header-content">
                 <h1><i class="fas fa-book-open" style="margin-right: 10px;"></i>議事録インタビューAI</h1>
                 <a href="#" id="back-to-top-link" class="back-to-top"><i class="fas fa-arrow-left"></i> トップに戻る</a>
-            </div>
-            <div class="progress-bar-container">
-                <div class="progress-bar" id="progress-bar"></div>
             </div>
         </header>
 

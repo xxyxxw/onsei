@@ -128,7 +128,8 @@ async def get_question(interview_type: str, question_id: int):
         "id": question['id'],
         "text": question['text'],
         "category": question['category'],
-        "is_last": question_id >= len(questions)
+        "is_last": question_id >= len(questions),
+        "total_questions": len(questions)
     }
 
 

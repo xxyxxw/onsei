@@ -1,7 +1,7 @@
 // 議事録インタビューAI - JavaScriptコード
 
 let currentQuestionId = 1;
-let totalQuestions = 10; // デフォルト値、APIから取得して更新
+let totalQuestions = 1; // APIから取得して更新
 let recognition = null; // Web Speech API
 let isRecording = false;
 let interviewType = ''; // インタビュータイプ (denryoku, hoken, ippan, other)
@@ -62,6 +62,12 @@ async function init() {
     // インタビュータイプを取得
     interviewType = getInterviewType();
     console.log('📋 インタビュータイプ:', interviewType);
+    
+    // 質問一覧を初期化
+    await initQuestionSidebar();
+    
+    // サイドバーのイベントリスナーを設定
+    setupSidebarListeners();
     
     // Web Speech API（音声認識）の初期化
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -200,14 +206,17 @@ async function loadQuestion(questionId) {
             questionCategory.textContent = data.category;
             if (questionIdDisplay) questionIdDisplay.textContent = questionId;
             
-            // is_lastフラグから総質問数を推定
-            if (data.is_last) {
-                totalQuestions = questionId;
+            // APIから総質問数を取得
+            if (data.total_questions) {
+                totalQuestions = data.total_questions;
             }
             
-            // プログレスバーの更新（現在の質問までを完了として表示）
-            const progress = ((questionId - 1) / totalQuestions) * 100;
+            // プログレスバーの更新（現在の質問の進捗度を表示）
+            const progress = (questionId / totalQuestions) * 100;
             if (progressBar) progressBar.style.width = `${progress}%`;
+
+            // サイドバーのアクティブ状態を更新
+            updateSidebarActive(questionId);
 
             // 保存された回答があれば表示
             if (answersData[questionId]?.transcript) {
@@ -425,6 +434,167 @@ if (backToTopLink) {
             }
         } else {
             window.location.href = '/';
+        }
+    });
+}
+// ==========================================
+// 質問一覧サイドバー機能
+// ==========================================
+
+// 質問一覧の初期化
+async function initQuestionSidebar() {
+    try {
+        // すべての質問を取得（1から順番に）
+        const questions = [];
+        let questionId = 1;
+        let hasMore = true;
+        
+        while (hasMore) {
+            try {
+                const response = await fetch(`/api/${interviewType}/question/${questionId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    questions.push(data);
+                    questionId++;
+                    
+                    // is_lastフラグで終了判定
+                    if (data.is_last) {
+                        hasMore = false;
+                    }
+                } else {
+                    hasMore = false;
+                }
+            } catch (error) {
+                hasMore = false;
+            }
+        }
+        
+        // カテゴリーごとにグループ化
+        const groupedQuestions = {};
+        questions.forEach(q => {
+            if (!groupedQuestions[q.category]) {
+                groupedQuestions[q.category] = [];
+            }
+            groupedQuestions[q.category].push(q);
+        });
+        
+        // HTMLを生成
+        const questionList = document.getElementById('question-list');
+        questionList.innerHTML = '';
+        
+        Object.keys(groupedQuestions).forEach(category => {
+            const section = document.createElement('div');
+            section.className = 'question-section';
+            
+            const title = document.createElement('div');
+            title.className = 'section-title';
+            title.innerHTML = `<i class="fas fa-folder"></i> ${category}`;
+            section.appendChild(title);
+            
+            const questionsContainer = document.createElement('div');
+            questionsContainer.className = 'section-questions';
+            
+            groupedQuestions[category].forEach(q => {
+                const item = document.createElement('div');
+                item.className = 'question-item';
+                item.dataset.questionId = q.id;
+                
+                if (q.id === currentQuestionId) {
+                    item.classList.add('active');
+                }
+                
+                item.innerHTML = `
+                    <span class="question-number">Q${q.id}</span>
+                    <span class="question-text">${q.text}</span>
+                `;
+                
+                item.addEventListener('click', () => {
+                    jumpToQuestion(q.id);
+                });
+                
+                questionsContainer.appendChild(item);
+            });
+            
+            section.appendChild(questionsContainer);
+            questionList.appendChild(section);
+        });
+        
+    } catch (error) {
+        console.error('質問一覧の初期化エラー:', error);
+    }
+}
+
+// 質問へジャンプ
+async function jumpToQuestion(questionId) {
+    currentQuestionId = questionId;
+    await loadQuestion(questionId);
+    
+    // アクティブ状態を更新
+    document.querySelectorAll('.question-item').forEach(item => {
+        if (parseInt(item.dataset.questionId) === questionId) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+    
+    // スマホの場合はサイドバーを閉じる
+    if (window.innerWidth <= 768) {
+        closeSidebar();
+    }
+}
+
+// サイドバーのイベントリスナー設定
+function setupSidebarListeners() {
+    const menuToggle = document.getElementById('menu-toggle');
+    const sidebarClose = document.getElementById('sidebar-close');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const sidebar = document.getElementById('sidebar');
+    
+    if (menuToggle) {
+        menuToggle.addEventListener('click', openSidebar);
+    }
+    
+    if (sidebarClose) {
+        sidebarClose.addEventListener('click', closeSidebar);
+    }
+    
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeSidebar);
+    }
+}
+
+function openSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    if (sidebar) {
+        sidebar.classList.add('active');
+    }
+    if (overlay) {
+        overlay.classList.add('active');
+    }
+}
+
+function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    if (sidebar) {
+        sidebar.classList.remove('active');
+    }
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+}
+
+// サイドバーのアクティブ状態を更新
+function updateSidebarActive(questionId) {
+    document.querySelectorAll('.question-item').forEach(item => {
+        if (parseInt(item.dataset.questionId) === questionId) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
         }
     });
 }
