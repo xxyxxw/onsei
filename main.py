@@ -289,32 +289,25 @@ async def generate_docx(request: dict = Body(...)):
         
         # Gemini APIで全体を要約・整形（1回だけAPI呼び出し）
         print(f"Gemini APIで全回答を要約・整形中... (タイプ: {interview_type})")
-        
-{all_qa_text}
-[あれば記載]
+
         # カスタムプロンプトを使用
         # 不要な固定項目（質問でない項目）をプロンプトから除去する
         def _remove_fixed_sections(text: str) -> str:
             import re
-            # 削除対象の見出しリスト
             targets = ['会社メールアドレス', '訪問日時', '開催場所']
             for t in targets:
-                # 見出しと次の「（記載なし）」行などを削除する
                 pattern = r"【" + re.escape(t) + r"】[\s\S]*?(（記載なし）|$)"
                 text = re.sub(pattern, '', text)
-            # 余分な連続改行を整える
             text = re.sub(r"\n{2,}", "\n\n", text).strip()
             return text
 
         sanitized_prompt = _remove_fixed_sections(custom_prompt)
 
-        summary_prompt = f"""{sanitized_prompt}
+        # プロンプトと全QAテキストを連結して要約用プロンプトを作成
+        summary_prompt = f"{sanitized_prompt}\n\n{all_qa_text}".strip()
 
-
-{all_qa_text}
-
+        # Geminiに投げて整形結果を取得
         formatted_content = await gemini_service.summarize("議事録作成", summary_prompt)
-"""
         
         # 整形された内容からSummaryオブジェクトを作成
         summaries = []
