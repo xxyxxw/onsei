@@ -186,6 +186,20 @@ function updateRecordingStatus(recording) {
     }
 }
 
+// fetch with retry
+async function fetchWithRetry(url, retries = 2, delay = 300) {
+    for (let i = 0; i <= retries; i++) {
+        try {
+            const res = await fetch(url);
+            return res;
+        } catch (e) {
+            console.warn(`fetch retry ${i} failed for ${url}`, e);
+            if (i < retries) await new Promise(r => setTimeout(r, delay));
+        }
+    }
+    throw new Error(`Failed to fetch ${url} after ${retries + 1} attempts`);
+}
+
 // 質問をロード
 async function loadQuestion(questionId) {
     try {
@@ -453,43 +467,41 @@ async function initQuestionSidebar() {
     try {
         console.log('🧭 initQuestionSidebar start', interviewType);
         // すべての質問を取得（1から順番に）
-        // Edgeでは複数の順次fetchでコネクション問題が出るため、
-        // まず1件目で総数を取得し、必要なら並列で全件取得する方式にする。
+        // Edge対策: まず1件目で総数を確認し、残りはバッチ（小さな並列）で取得する。
         const questions = [];
-        // まず1件目を取得して総数を確認
-        let firstResp;
         try {
-            firstResp = await fetch(`/api/${interviewType}/question/1`);
-        } catch (e) {
-            console.warn('初回質問取得エラー:', e);
-            firstResp = null;
-        }
-
-        if (firstResp && firstResp.ok) {
+            const firstResp = await fetchWithRetry(`/api/${interviewType}/question/1`, 2, 200);
+            if (!firstResp.ok) throw new Error('first response not ok');
             const firstData = await firstResp.json();
             questions.push(firstData);
 
             const total = firstData.total_questions || 1;
-            // 並列で残りを取得（1は既に取得済み）
-            const fetchPromises = [];
-            for (let id = 2; id <= total; id++) {
-                fetchPromises.push(
-                    fetch(`/api/${interviewType}/question/${id}`)
-                        .then(r => r.ok ? r.json() : null)
-                        .catch(() => null)
-                );
+            const batchSize = 4; // 同時並列数を抑える
+            for (let start = 2; start <= total; start += batchSize) {
+                const end = Math.min(total, start + batchSize - 1);
+                const batch = [];
+                for (let id = start; id <= end; id++) {
+                    batch.push(
+                        fetchWithRetry(`/api/${interviewType}/question/${id}`, 2, 200)
+                            .then(r => r.ok ? r.json() : null)
+                            .catch(e => {
+                                console.warn('batch fetch error', id, e);
+                                return null;
+                            })
+                    );
+                }
+                const results = await Promise.all(batch);
+                results.forEach(r => { if (r) questions.push(r); });
             }
-
-            const results = await Promise.all(fetchPromises);
-            results.forEach(r => { if (r) questions.push(r); });
-        } else {
-            // フォールバック: 既存の順次取得（何かしらで動く環境向け）
+        } catch (e) {
+            console.warn('並列取得でエラーが発生しました、フォールバックで順次取得を試行します', e);
+            // フォールバック: 順次取得
             let questionId = 1;
             let hasMore = true;
             while (hasMore) {
                 try {
-                    const response = await fetch(`/api/${interviewType}/question/${questionId}`);
-                    if (response.ok) {
+                    const response = await fetchWithRetry(`/api/${interviewType}/question/${questionId}`, 1, 200);
+                    if (response && response.ok) {
                         const data = await response.json();
                         questions.push(data);
                         questionId++;
@@ -498,6 +510,7 @@ async function initQuestionSidebar() {
                         hasMore = false;
                     }
                 } catch (error) {
+                    console.error('順次取得で中断:', error);
                     hasMore = false;
                 }
             }
