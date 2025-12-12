@@ -81,9 +81,6 @@ async function init() {
         recognition.onstart = () => {
             console.log('🎤 音声認識が開始されました');
             updateRecordingStatus(true);
-            
-            // 録音開始時にテキストエリアまでスクロール
-            scrollToTextarea();
         };
         
         recognition.onresult = (event) => {
@@ -109,8 +106,10 @@ async function init() {
             // テキストエリアのカーソルを最下部に移動
             transcriptText.scrollTop = transcriptText.scrollHeight;
             
-            // 音声入力中はテキストエリアが見える位置を維持
-            scrollToTextarea();
+            // 音声入力中はテキストエリアが見える位置を維持（ある程度文字が入力された後のみ）
+            if (displayText.length > 10) {
+                scrollToTextarea();
+            }
             
             // 確定した文字起こしを保存
             if (finalTranscript) {
