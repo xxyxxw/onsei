@@ -453,27 +453,53 @@ async function initQuestionSidebar() {
     try {
         console.log('🧭 initQuestionSidebar start', interviewType);
         // すべての質問を取得（1から順番に）
+        // Edgeでは複数の順次fetchでコネクション問題が出るため、
+        // まず1件目で総数を取得し、必要なら並列で全件取得する方式にする。
         const questions = [];
-        let questionId = 1;
-        let hasMore = true;
-        
-        while (hasMore) {
-            try {
-                const response = await fetch(`/api/${interviewType}/question/${questionId}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    questions.push(data);
-                    questionId++;
-                    
-                    // is_lastフラグで終了判定
-                    if (data.is_last) {
+        // まず1件目を取得して総数を確認
+        let firstResp;
+        try {
+            firstResp = await fetch(`/api/${interviewType}/question/1`);
+        } catch (e) {
+            console.warn('初回質問取得エラー:', e);
+            firstResp = null;
+        }
+
+        if (firstResp && firstResp.ok) {
+            const firstData = await firstResp.json();
+            questions.push(firstData);
+
+            const total = firstData.total_questions || 1;
+            // 並列で残りを取得（1は既に取得済み）
+            const fetchPromises = [];
+            for (let id = 2; id <= total; id++) {
+                fetchPromises.push(
+                    fetch(`/api/${interviewType}/question/${id}`)
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null)
+                );
+            }
+
+            const results = await Promise.all(fetchPromises);
+            results.forEach(r => { if (r) questions.push(r); });
+        } else {
+            // フォールバック: 既存の順次取得（何かしらで動く環境向け）
+            let questionId = 1;
+            let hasMore = true;
+            while (hasMore) {
+                try {
+                    const response = await fetch(`/api/${interviewType}/question/${questionId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        questions.push(data);
+                        questionId++;
+                        if (data.is_last) hasMore = false;
+                    } else {
                         hasMore = false;
                     }
-                } else {
+                } catch (error) {
                     hasMore = false;
                 }
-            } catch (error) {
-                hasMore = false;
             }
         }
         
@@ -494,7 +520,7 @@ async function initQuestionSidebar() {
         }
         questionList.innerHTML = '';
 
-        console.log('🧾 fetched questions count:', questions.length, questions.map(q=>q.id));
+        console.log('🧾 fetched questions count:', questions.length, questions.map(q=>q && q.id));
         
         if (questions.length === 0) {
             questionList.innerHTML = '<div class="no-questions">質問を読み込めませんでした。</div>';
