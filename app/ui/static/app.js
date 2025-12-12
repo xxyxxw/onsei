@@ -367,12 +367,16 @@ backBtn.addEventListener('click', () => {
     if (currentQuestionId > 1) {
         currentQuestionId--;
         loadQuestion(currentQuestionId);
+        // ページトップまでスクロール
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 });
 
 nextBtn.addEventListener('click', () => {
     currentQuestionId++;
     loadQuestion(currentQuestionId);
+    // ページトップまでスクロール
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
 finishBtn.addEventListener('click', async () => {
