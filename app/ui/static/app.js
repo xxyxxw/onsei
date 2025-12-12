@@ -103,13 +103,8 @@ async function init() {
             console.log('📝 表示テキスト:', displayText);
             transcriptText.value = displayText;
             
-            // テキストエリアのカーソルを最下部に移動
+            // テキストエリアの中だけをスクロール（最新の入力文字が見えるように）
             transcriptText.scrollTop = transcriptText.scrollHeight;
-            
-            // 音声入力中はテキストエリアが見える位置を維持（ある程度文字が入力された後のみ）
-            if (displayText.length > 10) {
-                scrollToTextarea();
-            }
             
             // 確定した文字起こしを保存
             if (finalTranscript) {
@@ -620,16 +615,6 @@ function updateSidebarActive(questionId) {
             item.classList.remove('active');
         }
     });
-}
-
-// テキストエリアまでスムーズにスクロール
-function scrollToTextarea() {
-    if (transcriptText) {
-        transcriptText.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center'
-        });
-    }
 }
 
 // 開始
