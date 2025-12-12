@@ -451,6 +451,7 @@ if (backToTopLink) {
 // 質問一覧の初期化
 async function initQuestionSidebar() {
     try {
+        console.log('🧭 initQuestionSidebar start', interviewType);
         // すべての質問を取得（1から順番に）
         const questions = [];
         let questionId = 1;
@@ -487,8 +488,19 @@ async function initQuestionSidebar() {
         
         // HTMLを生成
         const questionList = document.getElementById('question-list');
+        if (!questionList) {
+            console.warn('⚠️ question-list element not found');
+            return;
+        }
         questionList.innerHTML = '';
+
+        console.log('🧾 fetched questions count:', questions.length, questions.map(q=>q.id));
         
+        if (questions.length === 0) {
+            questionList.innerHTML = '<div class="no-questions">質問を読み込めませんでした。</div>';
+            return;
+        }
+
         Object.keys(groupedQuestions).forEach(category => {
             const section = document.createElement('div');
             section.className = 'question-section';
