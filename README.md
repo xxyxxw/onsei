@@ -403,33 +403,38 @@ minutes-automation/
 
 以下は主要なAPIフローを表すシーケンス図です：
 
-```mermaid
-sequenceDiagram
-  participant User as ユーザー
-  participant Browser as ブラウザ (UI)
-  participant Server as FastAPI サーバ
-  participant STT as STTService
-  participant Gemini as Gemini API
-  participant Docx as DocxService
+```
++---------------------------------------------------------------+
+| シーケンス図: /api/stt と /api/docx の主要フロー            |
++---------------------------------------------------------------+
 
-  rect rgb(240,248,255)
-  User->>Browser: 録音またはテキスト入力
-  Browser->>Server: POST /api/stt (音声ファイル)
-  Server->>STT: transcribe(audio)
-  STT-->>Server: transcript
-  Server->>Gemini: summarize(question, transcript)
-  Gemini-->>Server: summary_text
-  Server-->>Browser: 要約 + 次の質問
-  end
+ユーザー        ブラウザ(UI)         サーバ(FastAPI)      STT      Gemini       Docx
+  |                |                     |               |        |           |
+  | 録音/入力       |                     |               |        |           |
+  |--------------->|                     |               |        |           |
+  |                | POST /api/stt       |               |        |           |
+  |                |-------------------->|               |        |           |
+  |                |                     | transcribe()  |        |           |
+  |                |                     |-------------->|        |           |
+  |                |                     |               | transcript --> |
+  |                |                     |<--------------|        |           |
+  |                |                     | summarize(q,t)---------------|           |
+  |                |                     |----------------------------->|           |
+  |                |                     |               | formatted_summary |           |
+  |                |<--------------------|               |        |           |
+  | 要約＋次の質問  |                     |               |        |           |
+  |<---------------|                     |               |        |           |
 
-  rect rgb(245,255,240)
-  Browser->>Server: POST /api/docx (全回答データ)
-  Server->>Gemini: summarize(full_prompt + all_QA)
-  Gemini-->>Server: formatted_content
-  Server->>Docx: generate_document(formatted_content)
-  Docx-->>Server: docx_file_path
-  Server-->>Browser: FileResponse (docx をダウンロード)
-  end
+（/api/docx の流れ）
+  ユーザー -> ブラウザ: 全回答データ送信
+  ブラウザ -> サーバ: POST /api/docx (answers, interview_type)
+  サーバ -> Gemini: summarize(custom_prompt + all_QA)
+  Gemini -> サーバ: formatted_content
+  サーバ -> Docx: generate_document(formatted_content)
+  Docx -> サーバ: docx_file_path
+  サーバ -> ブラウザ: FileResponse (docx をダウンロード)
+
+図の読み方: 左から右へ時間進行。矢印はリクエスト／レスポンスの方向を示します。
 ```
 
 （注）図はMermaid形式です。GitHubや多くのMarkdownビューアでレンダリングされます。
