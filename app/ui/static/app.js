@@ -328,29 +328,26 @@ const stopRecording = () => {
     }
 };
 
-// マウスイベント
-recordBtn.addEventListener('mousedown', startRecording);
-recordBtn.addEventListener('mouseup', stopRecording);
-recordBtn.addEventListener('mouseleave', stopRecording);
+// 録音ボタン: クリック/タップでトグル（押すと開始/停止）
+if (recordBtn) {
+    // クリック／タップでトグル
+    recordBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    });
 
-// タッチイベント（スマホ用）
-recordBtn.addEventListener('touchstart', (e) => {
-    e.preventDefault(); // スクロール防止
-    e.stopPropagation(); // イベント伝播を停止
-    startRecording();
-}, { passive: false });
-
-recordBtn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    stopRecording();
-}, { passive: false });
-
-// タッチキャンセル時も停止
-recordBtn.addEventListener('touchcancel', (e) => {
-    e.preventDefault();
-    stopRecording();
-}, { passive: false });
+    // キーボード操作（Enter / Space）でトグル
+    recordBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (isRecording) stopRecording(); else startRecording();
+        }
+    });
+}
 
 // やり直しボタン
 const resetBtn = document.getElementById('reset-btn');
