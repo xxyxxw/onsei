@@ -404,17 +404,30 @@ finishBtn.addEventListener('click', async () => {
         
         if (!response.ok) throw new Error('生成に失敗しました');
         
-        // ダウンロード処理
+        // ダウンロード／表示処理（堅牢化）
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        // 新しいタブで開く（ブラウザが表示可能なら表示、できなければ既定のアプリで開く）
-        window.open(url, '_blank');
-        // オブジェクトURLは少し遅らせて解放
-        setTimeout(() => window.URL.revokeObjectURL(url), 2000);
-        
+        // 新しいタブで開く（ポップアップブロック時はフォールバックでダウンロード）
+        const newTab = window.open(url, '_blank');
+        if (!newTab) {
+            // フォールバック: 強制ダウンロード
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `議事録_${new Date().toISOString().slice(0,10)}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showStatus('ファイルをダウンロードしました。', 'success');
+            // ダウンロード後に短めに解放
+            setTimeout(() => { try { window.URL.revokeObjectURL(url); } catch (e) {} }, 5000);
+        } else {
+            showStatus('ファイルを新しいタブで開きました。', 'success');
+            // 新タブが読み込むまで URL を保持（長めに遅延して解放）
+            setTimeout(() => { try { window.URL.revokeObjectURL(url); } catch (e) {} }, 60000);
+        }
+
         finishBtn.disabled = false;
         finishBtn.innerHTML = '<i class="fas fa-file-word"></i> Word生成';
-        showStatus('ダウンロードが完了しました！', 'success');
         
     } catch (error) {
         console.error('Error:', error);

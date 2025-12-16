@@ -215,11 +215,21 @@ async function generateWord() {
         
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        // 新しいタブで表示させる（ブラウザの表示が可能なら表示、不可ならダウンロード）
-        window.open(url, '_blank');
-        setTimeout(() => window.URL.revokeObjectURL(url), 2000);
-        
-        showStatus('Wordファイルをダウンロードしました！', 'success');
+        // 新しいタブで表示（ポップアップブロック時はダウンロードにフォールバック）
+        const newTab = window.open(url, '_blank');
+        if (!newTab) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `議事録_${new Date().toLocaleDateString('ja-JP')}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showStatus('ファイルをダウンロードしました。', 'success');
+            setTimeout(() => { try { window.URL.revokeObjectURL(url); } catch (e) {} }, 5000);
+        } else {
+            showStatus('ファイルを新しいタブで開きました。', 'success');
+            setTimeout(() => { try { window.URL.revokeObjectURL(url); } catch (e) {} }, 60000);
+        }
         
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-file-word"></i> Word生成';
