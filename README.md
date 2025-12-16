@@ -399,6 +399,41 @@ minutes-automation/
 **→ 月間$30〜$150の追加コスト発生**
 ### パターン1: まずは完全無料で試す
 
+## **シーケンス図（主要フロー）**
+
+以下は主要なAPIフローを表すシーケンス図です：
+
+```mermaid
+sequenceDiagram
+  participant User as ユーザー
+  participant Browser as ブラウザ (UI)
+  participant Server as FastAPI サーバ
+  participant STT as STTService
+  participant Gemini as Gemini API
+  participant Docx as DocxService
+
+  rect rgb(240,248,255)
+  User->>Browser: 録音またはテキスト入力
+  Browser->>Server: POST /api/stt (音声ファイル)
+  Server->>STT: transcribe(audio)
+  STT-->>Server: transcript
+  Server->>Gemini: summarize(question, transcript)
+  Gemini-->>Server: summary_text
+  Server-->>Browser: 要約 + 次の質問
+  end
+
+  rect rgb(245,255,240)
+  Browser->>Server: POST /api/docx (全回答データ)
+  Server->>Gemini: summarize(full_prompt + all_QA)
+  Gemini-->>Server: formatted_content
+  Server->>Docx: generate_document(formatted_content)
+  Docx-->>Server: docx_file_path
+  Server-->>Browser: FileResponse (docx をダウンロード)
+  end
+```
+
+（注）図はMermaid形式です。GitHubや多くのMarkdownビューアでレンダリングされます。
+
 ```
 💡 テスト・小規模運用向け
 音声認識: Web Speech API（無料）
