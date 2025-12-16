@@ -326,13 +326,18 @@ async def generate_docx(request: dict = Body(...)):
         # Word文書生成（整形済みの内容を含める）
         output_path = docx_service.generate_document(summaries, formatted_content)
         
+        from urllib.parse import quote
         filename = f"議事録_{summaries[0].question_id if summaries else 'output'}.docx"
-        headers = {"Content-Disposition": f'inline; filename="{filename}"'}
-        return FileResponse(
+        # Create FileResponse normally (let Starlette handle content-length, etc.)
+        response = FileResponse(
             output_path,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers=headers
+            filename=filename
         )
+        # Set Content-Disposition using RFC5987 (filename*), percent-encoding UTF-8
+        # This avoids latin-1 encoding errors when header contains non-ASCII chars.
+        response.headers["Content-Disposition"] = f"inline; filename*=UTF-8''{quote(filename)}"
+        return response
         
     except Exception as e:
         print(f"Error in DOCX endpoint: {e}")
