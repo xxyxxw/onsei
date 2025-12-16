@@ -326,10 +326,12 @@ async def generate_docx(request: dict = Body(...)):
         # Word文書生成（整形済みの内容を含める）
         output_path = docx_service.generate_document(summaries, formatted_content)
         
+        filename = f"議事録_{summaries[0].question_id if summaries else 'output'}.docx"
+        headers = {"Content-Disposition": f'inline; filename="{filename}"'}
         return FileResponse(
             output_path,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            filename=f"議事録_{summaries[0].question_id if summaries else 'output'}.docx"
+            headers=headers
         )
         
     except Exception as e:

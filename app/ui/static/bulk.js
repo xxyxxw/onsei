@@ -155,18 +155,25 @@ const stopRecording = () => {
     }
 };
 
-// 録音ボタンイベント
-recordBtn.addEventListener('mousedown', startRecording);
-recordBtn.addEventListener('mouseup', stopRecording);
-recordBtn.addEventListener('mouseleave', stopRecording);
-recordBtn.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    startRecording();
-});
-recordBtn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    stopRecording();
-});
+// 録音ボタン: クリック/タップでトグル（押すと開始/もう一度押すと停止）
+if (recordBtn) {
+    recordBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    });
+
+    // キーボード操作（Enter / Space）でトグル
+    recordBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (isRecording) stopRecording(); else startRecording();
+        }
+    });
+}
 
 // テキストエリアの入力保存
 freeText.addEventListener('input', () => {
@@ -208,13 +215,9 @@ async function generateWord() {
         
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `議事録_${new Date().toLocaleDateString('ja-JP')}.docx`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        // 新しいタブで表示させる（ブラウザの表示が可能なら表示、不可ならダウンロード）
+        window.open(url, '_blank');
+        setTimeout(() => window.URL.revokeObjectURL(url), 2000);
         
         showStatus('Wordファイルをダウンロードしました！', 'success');
         

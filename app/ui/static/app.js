@@ -275,8 +275,8 @@ transcriptText.addEventListener('input', () => {
 });
 
 // イベントリスナー
-// 録音ボタン（長押し対応）
-// PC: mousedown/mouseup, スマホ: touchstart/touchend
+// 録音ボタン（クリックでトグル）
+// PC/モバイル: クリック／タップで開始・再度クリックで停止。キーボードも対応（Enter/Space）
 
 const startRecording = () => {
     if (!recognition) {
@@ -407,13 +407,10 @@ finishBtn.addEventListener('click', async () => {
         // ダウンロード処理
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `議事録_${new Date().toISOString().slice(0,10)}.docx`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        // 新しいタブで開く（ブラウザが表示可能なら表示、できなければ既定のアプリで開く）
+        window.open(url, '_blank');
+        // オブジェクトURLは少し遅らせて解放
+        setTimeout(() => window.URL.revokeObjectURL(url), 2000);
         
         finishBtn.disabled = false;
         finishBtn.innerHTML = '<i class="fas fa-file-word"></i> Word生成';
